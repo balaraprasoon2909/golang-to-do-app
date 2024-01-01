@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/thedevsaddam/renderer"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -60,6 +61,11 @@ func checkError(err error) {
 }
 
 func main() {
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+	router.Get("/", homeHandler)
+	router.Mount("/todo", todoHandlers())
+
 	server := &http.Server{
 		Addr:         ":9000",
 		Handler:      chi.NewRouter(),
@@ -91,4 +97,10 @@ func main() {
 		fmt.Printf("Server shutdown failed : %v\n", err)
 	}
 	fmt.Printf("Server shutdown gracefully")
+}
+
+func homeHandler(rw http.ResponseWriter, r *http.Request) {
+	filePath := "./README.md"
+	err := rnd.FileView(rw, http.StatusOK, filePath, "readme.md")
+	checkError(err)
 }
