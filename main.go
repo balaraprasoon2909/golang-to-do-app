@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
 	"github.com/thedevsaddam/renderer"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -54,7 +53,7 @@ type (
 )
 
 func init() {
-	fmt.Println("Running the init function")
+	log.Println("Running the init function")
 	rnd = renderer.New()
 
 	var err error
@@ -72,19 +71,20 @@ func init() {
 
 func checkError(err error) {
 	if err != nil {
-		fmt.Printf("Error encountered : %+v\n", err)
+		log.Printf("Error encountered : %+v\n", err)
 	}
 }
 
 func main() {
 	router := chi.NewRouter()
-	router.Use(middleware.Logger)
+	log.Printf("ascnllk")
+	// router.Use(middleware.Logger)
 	router.Get("/", homeHandler)
 	router.Mount("/todo", todoHandlers())
 
 	server := &http.Server{
 		Addr:         ":9000",
-		Handler:      chi.NewRouter(),
+		Handler:      router,
 		ReadTimeout:  60 * time.Second,
 		WriteTimeout: 60 * time.Second,
 	}
@@ -93,14 +93,14 @@ func main() {
 	signal.Notify(stopChan, os.Interrupt)
 
 	go func() {
-		fmt.Println("Server started on port ", 9000)
+		log.Println("Server started on port ", 9000)
 		if err := server.ListenAndServe(); err != nil {
-			fmt.Printf("listen:%s\n", err)
+			log.Printf("listen:%s\n", err)
 		}
 	}()
 
 	sig := <-stopChan
-	fmt.Printf("signal received : %+v\n", sig)
+	log.Printf("signal received : %+v\n", sig)
 
 	if err := client.Disconnect(context.Background()); err != nil {
 		panic(err)
@@ -110,12 +110,13 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		fmt.Printf("Server shutdown failed : %v\n", err)
+		log.Printf("Server shutdown failed : %v\n", err)
 	}
-	fmt.Printf("Server shutdown gracefully")
+	log.Printf("Server shutdown gracefully")
 }
 
 func homeHandler(rw http.ResponseWriter, r *http.Request) {
+	log.Printf("inside home handler")
 	filePath := "./README.md"
 	err := rnd.FileView(rw, http.StatusOK, filePath, "readme.md")
 	checkError(err)
@@ -138,7 +139,7 @@ func getTodos(rw http.ResponseWriter, r *http.Request) {
 	cursor, err := db.Collection(collectionName).Find(context.Background(), filter)
 
 	if err != nil {
-		fmt.Printf("Failed to fetch todos from db records : %+v\n", err.Error())
+		log.Printf("Failed to fetch todos from db records : %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
 			"message": "Could not fetch the todo collection",
 			"error":   err.Error(),
@@ -165,14 +166,13 @@ func getTodos(rw http.ResponseWriter, r *http.Request) {
 		Message: "All Todos retrieved",
 		Data:    todoList,
 	})
-
 }
 
 func createTodo(rw http.ResponseWriter, r *http.Request) {
 	var request CreateTodo
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		fmt.Printf("Failed to decode json data : %+v", err.Error())
+		log.Printf("Failed to decode json data : %+v", err.Error())
 		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
 			"message": "Could not decode data",
 		})
@@ -180,7 +180,7 @@ func createTodo(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(request.Title) == 0 {
-		fmt.Printf("No title added to response body")
+		log.Printf("No title added to response body")
 		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
 			"message": "Please add a title",
 		})
@@ -196,7 +196,7 @@ func createTodo(rw http.ResponseWriter, r *http.Request) {
 
 	data, err := db.Collection(collectionName).InsertOne(r.Context(), todoModel)
 	if err != nil {
-		fmt.Printf("Failed to insert data into the database : %+v\n", err.Error())
+		log.Printf("Failed to insert data into the database : %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
 			"message": "Failed to add data into the database",
 			"error":   err.Error(),
@@ -214,14 +214,14 @@ func deleteTodo(rw http.ResponseWriter, r *http.Request) {
 	res, err := primitive.ObjectIDFromHex(id)
 
 	if err != nil {
-		fmt.Printf("Invalid id : %+v\n", err.Error())
+		log.Printf("Invalid id : %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	filter := bson.M{"id": res}
 	if data, err := db.Collection(collectionName).DeleteOne(r.Context(), filter); err != nil {
-		fmt.Printf("Could not delete item from database : %+v\n", err.Error())
+		log.Printf("Could not delete item from database : %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
 			"message": "An error occurred while deleting the todo item",
 			"error":   err.Error(),
@@ -239,7 +239,7 @@ func updateTodo(rw http.ResponseWriter, r *http.Request) {
 
 	res, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		fmt.Printf("Invalid id : %+v\n", err.Error())
+		log.Printf("Invalid id : %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -247,7 +247,7 @@ func updateTodo(rw http.ResponseWriter, r *http.Request) {
 	var request UpdateTodo
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		fmt.Printf("Failed to decode json response body data: %+v\n", err.Error())
+		log.Printf("Failed to decode json response body data: %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusBadRequest, err.Error())
 	}
 
@@ -264,7 +264,7 @@ func updateTodo(rw http.ResponseWriter, r *http.Request) {
 	data, err := db.Collection(collectionName).UpdateOne(r.Context(), filter, update)
 
 	if err != nil {
-		fmt.Printf("Failed to update db collection : %+v\n", err.Error())
+		log.Printf("Failed to update db collection : %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
 			"message": "Failed to update data in db collection",
 			"error":   err.Error(),
