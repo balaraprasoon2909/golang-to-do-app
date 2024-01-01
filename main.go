@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -40,6 +41,10 @@ type (
 	GetTodoResponse struct {
 		Message string `json:"message"`
 		Data    []Todo `json:"data"`
+	}
+
+	CreateTodo struct {
+		Title string `json:"title"`
 	}
 )
 
@@ -156,4 +161,45 @@ func getTodos(rw http.ResponseWriter, r *http.Request) {
 		Data:    todoList,
 	})
 
+}
+
+func createTodo(rw http.ResponseWriter, r *http.Request) {
+	var request CreateTodo
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		fmt.Printf("Failed to decode json data : %+v", err.Error())
+		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
+			"message": "Could not decode data",
+		})
+		return
+	}
+
+	if len(request.Title) == 0 {
+		fmt.Printf("No title added to response body")
+		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
+			"message": "Please add a title",
+		})
+		return
+	}
+
+	todoModel := TodoModel{
+		Id:        primitive.NewObjectID(),
+		Title:     request.Title,
+		Completed: false,
+		CreatedAt: time.Now(),
+	}
+
+	data, err := db.Collection(collectionName).InsertOne(r.Context(), todoModel)
+	if err != nil {
+		fmt.Printf("Failed to insert data into the database : %+v", err.Error())
+		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
+			"message": "Failed to add data into the database",
+			"error":   err.Error(),
+		})
+	}
+
+	rnd.JSON(rw, http.StatusCreated, renderer.M{
+		"message": "Todo created successfully",
+		"ID":      data.InsertedID,
+	})
 }
