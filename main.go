@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -53,7 +55,7 @@ func init() {
 
 func checkError(err error) {
 	if err != nil {
-		fmt.Printf("Error encountered : %+v", err)
+		fmt.Printf("Error encountered : %+v\n", err)
 	}
 }
 
@@ -64,8 +66,29 @@ func main() {
 		ReadTimeout:  60 * time.Second,
 		WriteTimeout: 60 * time.Second,
 	}
-	fmt.Println("Server started on port ", 9000)
-	if err := server.ListenAndServe(); err != nil {
-		fmt.Printf("listen:%s\n", err)
+
+	stopChan := make(chan os.Signal, 1)
+	signal.Notify(stopChan, os.Interrupt)
+
+	go func() {
+		fmt.Println("Server started on port ", 9000)
+		if err := server.ListenAndServe(); err != nil {
+			fmt.Printf("listen:%s\n", err)
+		}
+	}()
+
+	sig := <-stopChan
+	fmt.Printf("signal received : %+v\n", sig)
+
+	if err := client.Disconnect(context.Background()); err != nil {
+		panic(err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		fmt.Printf("Server shutdown failed : %v\n", err)
+	}
+	fmt.Printf("Server shutdown gracefully")
 }
