@@ -46,6 +46,11 @@ type (
 	CreateTodo struct {
 		Title string `json:"title"`
 	}
+
+	UpdateTodo struct {
+		Title     string `json:"title"`
+		Completed bool   `json:"completed"`
+	}
 )
 
 func init() {
@@ -216,7 +221,7 @@ func deleteTodo(rw http.ResponseWriter, r *http.Request) {
 
 	filter := bson.M{"id": res}
 	if data, err := db.Collection(collectionName).DeleteOne(r.Context(), filter); err != nil {
-		fmt.Printf("Could not delete item from database : %+v\n")
+		fmt.Printf("Could not delete item from database : %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
 			"message": "An error occurred while deleting the todo item",
 			"error":   err.Error(),
@@ -227,4 +232,48 @@ func deleteTodo(rw http.ResponseWriter, r *http.Request) {
 			"data":    data,
 		})
 	}
+}
+
+func updateTodo(rw http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	res, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		fmt.Printf("Invalid id : %+v\n", err.Error())
+		rnd.JSON(rw, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var request UpdateTodo
+
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		fmt.Printf("Failed to decode json response body data: %+v\n", err.Error())
+		rnd.JSON(rw, http.StatusBadRequest, err.Error())
+	}
+
+	if len(request.Title) == 0 {
+		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
+			"message": "Title cannot be empty",
+		})
+		return
+	}
+
+	filter := bson.M{"id": id}
+	update := bson.M{"$set": bson.M{"title": request.Title, "completed": request.Completed}}
+
+	data, err := db.Collection(collectionName).UpdateOne(r.Context(), filter, update)
+
+	if err != nil {
+		fmt.Printf("Failed to update db collection : %+v\n", err.Error())
+		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
+			"message": "Failed to update data in db collection",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	rnd.JSON(rw, http.StatusOK, renderer.M{
+		"message": "Successfully updated item",
+		"data":    data.ModifiedCount,
+	})
 }
