@@ -258,7 +258,7 @@ func updateTodo(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filter := bson.M{"id": id}
+	filter := bson.M{"id": res}
 	update := bson.M{"$set": bson.M{"title": request.Title, "completed": request.Completed}}
 
 	data, err := db.Collection(collectionName).UpdateOne(r.Context(), filter, update)
