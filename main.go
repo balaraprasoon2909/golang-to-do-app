@@ -204,7 +204,7 @@ func createTodo(rw http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func updateTodo(rw http.ResponseWriter, r *http.Request) {
+func deleteTodo(rw http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	res, err := primitive.ObjectIDFromHex(id)
 
@@ -221,11 +221,10 @@ func updateTodo(rw http.ResponseWriter, r *http.Request) {
 			"message": "An error occurred while deleting the todo item",
 			"error":   err.Error(),
 		})
-		return
+	} else {
+		rnd.JSON(rw, http.StatusOK, renderer.M{
+			"message": "Item deleted successfully",
+			"data":    data,
+		})
 	}
-
-	rnd.JSON(rw, http.StatusOK, renderer.M{
-		"message": "Item deleted successfully",
-		"data":    data,
-	})
 }
