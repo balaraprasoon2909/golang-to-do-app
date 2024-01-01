@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/thedevsaddam/renderer"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -34,6 +35,11 @@ type (
 		Title     string    `json:"title"`
 		Completed bool      `json:"completed"`
 		CreatedAt time.Time `json:"completed_at"`
+	}
+
+	GetTodoResponse struct {
+		Message string `json:"message"`
+		Data    []Todo `json:"data"`
 	}
 )
 
@@ -103,4 +109,51 @@ func homeHandler(rw http.ResponseWriter, r *http.Request) {
 	filePath := "./README.md"
 	err := rnd.FileView(rw, http.StatusOK, filePath, "readme.md")
 	checkError(err)
+}
+
+func todoHandlers() http.Handler {
+	router := chi.NewRouter()
+	router.Group(func(r chi.Router) {
+		r.Get("/", getTodos)
+		r.Post("/", createTodo)
+		r.Put("/{id}", updateTodo)
+		r.Delete("/{id}", deleteTodo)
+	})
+	return router
+}
+
+func getTodos(rw http.ResponseWriter, r *http.Request) {
+	var todoListFromDB = []TodoModel{}
+	filter := bson.D{}
+	cursor, err := db.Collection(collectionName).Find(context.Background(), filter)
+
+	if err != nil {
+		fmt.Printf("Failed to fetch todos from db records : %+v", err.Error())
+		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
+			"message": "Could not fetch the todo collection",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	todoList := []Todo{}
+
+	if err := cursor.All(context.Background(), &todoListFromDB); err != nil {
+		checkError(err)
+	}
+
+	for _, td := range todoListFromDB {
+		todoList = append(todoList, Todo{
+			Id:        td.Id.Hex(),
+			Title:     td.Title,
+			Completed: td.Completed,
+			CreatedAt: td.CreatedAt,
+		})
+	}
+
+	rnd.JSON(rw, http.StatusOK, GetTodoResponse{
+		Message: "All Todos retrieved",
+		Data:    todoList,
+	})
+
 }
