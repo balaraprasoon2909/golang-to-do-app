@@ -133,7 +133,7 @@ func getTodos(rw http.ResponseWriter, r *http.Request) {
 	cursor, err := db.Collection(collectionName).Find(context.Background(), filter)
 
 	if err != nil {
-		fmt.Printf("Failed to fetch todos from db records : %+v", err.Error())
+		fmt.Printf("Failed to fetch todos from db records : %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusBadRequest, renderer.M{
 			"message": "Could not fetch the todo collection",
 			"error":   err.Error(),
@@ -191,7 +191,7 @@ func createTodo(rw http.ResponseWriter, r *http.Request) {
 
 	data, err := db.Collection(collectionName).InsertOne(r.Context(), todoModel)
 	if err != nil {
-		fmt.Printf("Failed to insert data into the database : %+v", err.Error())
+		fmt.Printf("Failed to insert data into the database : %+v\n", err.Error())
 		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
 			"message": "Failed to add data into the database",
 			"error":   err.Error(),
@@ -201,5 +201,31 @@ func createTodo(rw http.ResponseWriter, r *http.Request) {
 	rnd.JSON(rw, http.StatusCreated, renderer.M{
 		"message": "Todo created successfully",
 		"ID":      data.InsertedID,
+	})
+}
+
+func updateTodo(rw http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	res, err := primitive.ObjectIDFromHex(id)
+
+	if err != nil {
+		fmt.Printf("Invalid id : %+v\n", err.Error())
+		rnd.JSON(rw, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	filter := bson.M{"id": res}
+	if data, err := db.Collection(collectionName).DeleteOne(r.Context(), filter); err != nil {
+		fmt.Printf("Could not delete item from database : %+v\n")
+		rnd.JSON(rw, http.StatusInternalServerError, renderer.M{
+			"message": "An error occurred while deleting the todo item",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	rnd.JSON(rw, http.StatusOK, renderer.M{
+		"message": "Item deleted successfully",
+		"data":    data,
 	})
 }
