@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/thedevsaddam/renderer"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -78,7 +79,7 @@ func checkError(err error) {
 func main() {
 	router := chi.NewRouter()
 	log.Printf("ascnllk")
-	// router.Use(middleware.Logger)
+	router.Use(middleware.Logger)
 	router.Get("/", homeHandler)
 	router.Mount("/todo", todoHandlers())
 
